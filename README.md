@@ -229,3 +229,4 @@ This is for anyone that wants to make complex workflows with SD or that wants to
 # ComfyUI-Long-CLIP
 # ComfyUI-Long-CLIP
 # ComfyUI-Long-CLIP
+# ComfyUI-Long-CLIP
