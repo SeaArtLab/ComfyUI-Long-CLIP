@@ -7,7 +7,7 @@ git clone https://github.com/comfyanonymous/ComfyUI.git
 cd ComfyUI/custom_nodes
 git clone git@github.com:SeaArtLab/ComfyUI-Long-CLIP.git
 ```
-Download [LongCLIP-L](https://huggingface.co/BeichenZhang/LongCLIP-L) to models/checkpoints, and thanks to [Long-CLIP](https://github.com/beichenzbc/Long-CLIP/tree/main) for making the weights available. Once the LongCLIP-G weights are released, we will also support them!
+Download [LongCLIP-L](https://huggingface.co/BeichenZhang/LongCLIP-L) to models/clip, and thanks to [Long-CLIP](https://github.com/beichenzbc/Long-CLIP/tree/main) for making the weights available. Once the LongCLIP-G weights are released, we will also support them!
 
 ## Workflow
 We have specifically prepared examples for SD1.5 and SDXL for your use. To simplify the demonstration, our examples are straightforward, and you do not need to install any additional plugins. This plugin also supports operations such as clip-skip.
