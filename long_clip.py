@@ -1,12 +1,13 @@
 from .long_clip_model import longclip
 import os
 import torch
-from .long_clip_model import longclip
 from comfy.sd import CLIP
 import folder_paths
 from comfy.sd1_clip import load_embed,ClipTokenWeightEncoder
 from comfy.model_management import get_torch_device
 from comfy import model_management
+import comfy
+
 
 class SDLongClipModel(torch.nn.Module, ClipTokenWeightEncoder):
     """Uses the CLIP transformer encoder for text (from huggingface)"""
@@ -354,6 +355,66 @@ class SDXLLongTokenizer:
     def untokenize(self, token_weight_pair):
         return self.clip_g.untokenize(token_weight_pair)
 
+class LongCLIPFluxModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.clip_l = None
+        self.t5xxl = None
+
+    def set_clip_options(self, options):
+        self.clip_l.set_clip_options(options)
+        self.t5xxl.set_clip_options(options)
+
+    def reset_clip_options(self):
+        self.clip_l.reset_clip_options()
+        self.t5xxl.reset_clip_options()
+
+    def encode_token_weights(self, token_weight_pairs):
+        token_weight_pairs_l = token_weight_pairs["l"]
+        token_weight_pairs_t5 = token_weight_pairs["t5xxl"]
+
+        # Encode using Long-CLIP
+        l_out, l_pooled = self.clip_l.encode_token_weights(token_weight_pairs_l)
+        # Encode using T5XXL
+        t5_out, t5_pooled = self.t5xxl.encode_token_weights(token_weight_pairs_t5)
+
+        return t5_out, l_pooled  # Adjust as per the output requirement of the diffusion model
+
+    def load_sd(self, sd):
+        if "text_model.encoder.layers.1.mlp.fc1.weight" in sd:
+            return self.clip_l.load_sd(sd)
+        else:
+            return self.t5xxl.load_sd(sd)
+
+class LongCLIPFluxTokenizer:
+    def __init__(self):
+        self.clip_l = None
+        self.clip_g = None
+
+    def tokenize_with_weights(self, text: str, return_word_ids=False):
+        # Tokenize with both Long-CLIP and T5XXL
+        out = {}
+        out["l"] = self.clip_l.tokenize_with_weights(text, return_word_ids)  # Long-CLIP tokenization
+        out["t5xxl"] = self.t5xxl.tokenize_with_weights(text, return_word_ids)  # T5XXL tokenization
+
+        # Check the number of tokens and pad the shorter sequence if necessary
+        l_tokens = token_num(out["l"])
+        t5_tokens = token_num(out["t5xxl"])
+
+        if l_tokens > t5_tokens:
+            out["t5xxl"] = pad_tokens(out["t5xxl"], self.t5xxl, l_tokens - t5_tokens)
+        elif t5_tokens > l_tokens:
+            out["l"] = pad_tokens(out["l"], self.clip_l, t5_tokens - l_tokens)
+
+        return out
+
+    def untokenize(self, token_weight_pair):
+        # Untokenize using Long-CLIP tokenizer
+        return self.clip_l.untokenize(token_weight_pair)
+
+    def state_dict(self):
+        return {}
+
 class SeaArtLongXLClipMerge:
     @classmethod
     def INPUT_TYPES(cls):
@@ -405,3 +466,32 @@ class SeaArtLongClip:
         embedding_directory = folder_paths.get_folder_paths("embeddings")
         clip = CLIP(clip_target, embedding_directory=embedding_directory)
         return (clip,)
+    
+class LongCLIPTextEncodeFlux:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "clip_name": (folder_paths.get_filename_list("clip"), ),
+            "clip": ("CLIP", ),
+        }}
+
+    CATEGORY = "SeaArt"
+    RETURN_TYPES = ("CLIP",)
+    FUNCTION = "do"
+
+    def do(self, clip_name, clip):
+        clip_clone = clip.clone()
+        clip_path = folder_paths.get_full_path("clip", clip_name)
+        load_device = model_management.text_encoder_device()
+        device = model_management.text_encoder_offload_device()
+        dtype = model_management.text_encoder_dtype(load_device)
+        longclip_model = SDLongClipModel(version=clip_path, layer="hidden", layer_idx=-2, device=device, dtype=dtype, max_length=248)
+        flux_clip_model = LongCLIPFluxModel()
+        flux_clip_model.clip_l = longclip_model
+        flux_clip_model.t5xxl = clip_clone.cond_stage_model.t5xxl
+        clip_clone.cond_stage_model = flux_clip_model
+        long_tokenizer = LongCLIPFluxTokenizer()
+        long_tokenizer.clip_l = SDLongTokenizer(embedding_directory=clip_clone.tokenizer.clip_l.embedding_directory, max_length=248)
+        long_tokenizer.t5xxl = clip_clone.tokenizer.t5xxl
+        clip_clone.tokenizer = long_tokenizer
+        return (clip_clone,)
