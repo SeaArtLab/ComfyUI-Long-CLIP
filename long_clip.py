@@ -45,6 +45,8 @@ class SDLongClipModel(torch.nn.Module, ClipTokenWeightEncoder):
         self.layer_default = (self.layer, self.layer_idx)
         self.options_default = (self.layer, self.layer_idx, self.return_projected_pooled)
 
+        self.dtypes = [param.dtype for param in self.parameters()]
+
     def freeze(self):
         self.transformer = self.transformer.eval()
         #self.train = disabled_train
@@ -159,7 +161,7 @@ class SDLongClipModel(torch.nn.Module, ClipTokenWeightEncoder):
         return self.transformer.load_state_dict(sd, strict=False)
     
 class SDLongTokenizer:
-    def __init__(self, max_length=248, pad_with_end=True, embedding_directory=None, embedding_size=768, embedding_key='clip_l',  has_start_token=True, pad_to_max_length=True):
+    def __init__(self, max_length=248, pad_with_end=True, embedding_directory=None, tokenizer_data=None, embedding_size=768, embedding_key='clip_l',  has_start_token=True, pad_to_max_length=True):
         self.tokenizer = longclip.only_tokenize ##tokenizer_class.from_pretrained(tokenizer_path)
         self.max_length = max_length
         empty = self.tokenizer('')[0]
@@ -181,6 +183,7 @@ class SDLongTokenizer:
         self.embedding_identifier = "embedding:"
         self.embedding_size = embedding_size
         self.embedding_key = embedding_key
+        self.tokenizer_data = tokenizer_data
 
     def _try_get_embedding(self, embedding_name:str):
         '''
