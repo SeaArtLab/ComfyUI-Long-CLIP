@@ -20,6 +20,7 @@ class SDLongClipModel(torch.nn.Module, ClipTokenWeightEncoder):
                  freeze=True, layer="last", layer_idx=None, dtype=None,
                  special_tokens={"start": 49406, "end": 49407, "pad": 49407}, layer_norm_hidden_state=True, enable_attention_masks=False, return_projected_pooled=True, **kwargs):  # clip-vit-base-patch32
         super().__init__()
+
         assert layer in self.LAYERS
 
         self.transformer, _ = longclip.load(version, device=device)
@@ -210,35 +211,51 @@ class SDLongTokenizer:
             pad_token = self.end_token
         else:
             pad_token = 0
+
         from comfy.sd1_clip import token_weights,escape_important,unescape_important
 
         text = escape_important(text)
         parsed_weights = token_weights(text, 1.0)
 
-        #tokenize words
         tokens = []
+        total_token_count = 0
+
         for weighted_segment, weight in parsed_weights:
             to_tokenize = unescape_important(weighted_segment).replace("\n", " ").split(' ')
             to_tokenize = [x for x in to_tokenize if x != ""]
             for word in to_tokenize:
-                #if we find an embedding, deal with the embedding
+                if total_token_count >= self.max_length:
+                    print(f"Reached max length of {self.max_length} tokens.")
+                    break
+
                 if word.startswith(self.embedding_identifier) and self.embedding_directory is not None:
                     embedding_name = word[len(self.embedding_identifier):].strip('\n')
                     embed, leftover = self._try_get_embedding(embedding_name)
                     if embed is None:
-                        print(f"warning, embedding:{embedding_name} does not exist, ignoring")
+                        print(f"Warning: embedding '{embedding_name}' does not exist, ignoring.")
                     else:
                         if len(embed.shape) == 1:
                             tokens.append([(embed, weight)])
                         else:
                             tokens.append([(embed[x], weight) for x in range(embed.shape[0])])
-                    #if we accidentally have leftover text, continue parsing using leftover, else move on to next word
+                        total_token_count += len(tokens[-1])  # Add count of the newly added tokens
+
                     if leftover != "":
                         word = leftover
                     else:
                         continue
-                #parse word
-                tokens.append([(t, weight) for t in self.tokenizer(word)[0][self.tokens_start:-1]])
+
+                # Tokenize word and add to tokens
+                word_tokens = [(t, weight) for t in self.tokenizer(word)[0][self.tokens_start:-1]]
+                if total_token_count + len(word_tokens) > self.max_length:
+                    # Truncate the current group of tokens to fit within the max length
+                    word_tokens = word_tokens[:self.max_length - total_token_count]
+                tokens.append(word_tokens)
+                total_token_count += len(word_tokens)
+
+        # Debug: Print the final token structure and counts
+        #print(f"Final token structure: {tokens}")
+        #print(f"Total token count: {total_token_count}")
 
         #reshape token array to CLIP input size
         batched_tokens = []
@@ -279,6 +296,9 @@ class SDLongTokenizer:
 
         if not return_word_ids:
             batched_tokens = [[(t, w) for t, w,_ in x] for x in batched_tokens]
+
+        if len(tokens) > self.max_length:
+            print("Warning: Token sequence exceeds max length") # This should not happen due to truncation.
 
         return batched_tokens
 
