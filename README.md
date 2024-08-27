@@ -7,7 +7,7 @@ In the ComfyUI/custom_nodes directory:
 git clone https://github.com/zer0int/ComfyUI-Long-CLIP.git
 ```
 Download for 1.5 and Flux.1 [LongCLIP-L](https://huggingface.co/BeichenZhang/LongCLIP-L) to models/checkpoints, and thanks to [Long-CLIP](https://github.com/beichenzbc/Long-CLIP/tree/main) for making the weights available. 
-Download for SDXL [LongCLIP-B](https://huggingface.co/BeichenZhang/LongCLIP-L) to models/checkpoints.
+Download for SDXL [LongCLIP-B](https://huggingface.co/BeichenZhang/LongCLIP-B) to models/checkpoints.
 ## Workflow
 We have specifically prepared examples for SD1.5, SDXL, and flux for your use. To simplify the demonstration, our examples are straightforward, and you do not need to install any additional plugins. This plugin also supports operations such as clip-skip.
 ![SD1.5](./image/SD1-5-long.png)
