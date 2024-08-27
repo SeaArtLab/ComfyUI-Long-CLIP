@@ -18,7 +18,7 @@ class SDLongClipModel(torch.nn.Module, ClipTokenWeightEncoder):
     ]
     def __init__(self, version="openai/clip-vit-large-patch14", device="cpu", max_length=77,
                  freeze=True, layer="last", layer_idx=None, dtype=None,
-                 special_tokens={"start": 49406, "end": 49407, "pad": 49407}, layer_norm_hidden_state=True, enable_attention_masks=False, return_projected_pooled=True):  # clip-vit-base-patch32
+                 special_tokens={"start": 49406, "end": 49407, "pad": 49407}, layer_norm_hidden_state=True, enable_attention_masks=False, return_projected_pooled=True, **kwargs):  # clip-vit-base-patch32
         super().__init__()
         assert layer in self.LAYERS
 
