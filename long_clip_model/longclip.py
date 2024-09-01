@@ -3,7 +3,6 @@ import os
 import urllib
 import warnings
 from typing import Any, Union, List
-from pkg_resources import packaging
 from torch import nn
 import torch
 from PIL import Image
@@ -13,6 +12,11 @@ from safetensors.torch import load_file
 
 from .model_longclip import build_model
 from .simple_tokenizer import SimpleTokenizer as _Tokenizer
+
+try:
+    import packaging
+except ImportError:
+    from pkg_resources import packaging
 
 try:
     from torchvision.transforms import InterpolationMode
