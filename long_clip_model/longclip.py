@@ -3,15 +3,20 @@ import os
 import urllib
 import warnings
 from typing import Any, Union, List
-from pkg_resources import packaging
 from torch import nn
 import torch
 from PIL import Image
 from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize
 from tqdm import tqdm
+from safetensors.torch import load_file
 
 from .model_longclip import build_model
 from .simple_tokenizer import SimpleTokenizer as _Tokenizer
+
+try:
+    import packaging
+except ImportError:
+    from pkg_resources import packaging
 
 try:
     from torchvision.transforms import InterpolationMode
@@ -65,9 +70,12 @@ def load(name: str, device: Union[str, torch.device] = "cuda" if torch.cuda.is_a
     
     model_path = name
 
-    state_dict = torch.load(model_path, map_location="cpu")
+    if model_path.endswith(".safetensors"):
+        state_dict = load_file(model_path, device="cpu")
+    else:
+        state_dict = torch.load(model_path, map_location="cpu")
     
-    model = build_model(state_dict or model.state_dict(), load_from_clip = False).to(device)
+    model = build_model(state_dict or model.state_dict(), load_from_clip=False).to(device)
 
     if str(device) == "cpu":
         model.float()
